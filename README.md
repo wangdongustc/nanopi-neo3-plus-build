@@ -21,7 +21,7 @@ SD 启动链与输入契约见 [docs/image-layout.md](docs/image-layout.md)。
 
 ## 通向第一张 SD 卡
 
-1. **Ubuntu**：`build-resolute-rootfs.sh`（尚未入库）做出 Resolute rootfs，并用 `carry.tgz` 带入与 `kernel.img` 成对的 6.1 模块。
+1. **Ubuntu**：[`scripts/build-resolute-rootfs.sh`](scripts/build-resolute-rootfs.sh) 做出 Resolute rootfs（见 [docs/resolute-rootfs.md](docs/resolute-rootfs.md)），并用 `carry.tgz` 带入与 `kernel.img` 成对的 6.1 模块。
 2. **BSP**：准备 `idbloader`、`uboot.img`、`kernel.img`、`resource.img`、plain `dtbo.img`。来源是 FriendlyELEC 预编译或本仓编译，文件放在 git 外。
 3. **构建**：`scripts/build-image.sh` 按分区表写出 `out/*.img`。脚本现在会校验参数并打印布局，GPT 灌装仍是 TODO（退出码 2，不生成文件）。
 4. **验收**：把镜像写入 SD，断电冷启动。`uname -r` 仍是 6.1，`/etc/os-release` 是 26.04，串口 1500000，SSH 与千兆可用。
