@@ -31,6 +31,18 @@ NanoPi NEO3 Plus 构建仓库。Agent 与协作者按下面执行。Tech Lead �
 
 本仓库入口：`scripts/build-image.sh`。布局见 `scripts/partition-layout.md`。决策见 [ADR-0002](docs/adr/0002-own-image-builder.md)。
 
+## 构建在哪跑
+
+重构建只在所有者的 DW-MiBook 上跑，通过本机 Grok Bot 的机器命令执行：
+
+- debootstrap（Resolute rootfs）
+- 编译 U-Boot / kernel
+- 镜像打包（`scripts/build-image.sh` 写出 `out/*.img`）
+
+不在 MBA-M1-Fedora 上跑。不把这些开成大型 Cursor 云端 VM 任务。
+
+云端 agent 只改本仓库的代码和文档。固件、rootfs 和 `.img` 留在 DW-MiBook，不进 git。
+
 ## 协作
 
 - 改动走 PR。大实现之前先写 ADR。

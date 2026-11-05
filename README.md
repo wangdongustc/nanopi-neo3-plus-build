@@ -15,6 +15,7 @@ NanoPi NEO3 Plus（RK3528A，2GB LPDDR4）的镜像构建仓库。FriendlyELEC U
 - **网络**：netplan → systemd-networkd。网卡名以板上 `ip link` 为准（`eth0` 或 `end0`）。
 - **内存**：2GB。分区用 plain 布局（单个增长的 rootfs，关闭 OverlayFS），便于 swap 与 Docker。
 - **产物**：`out/rk3528-sd-ubuntu-resolute-core-6.1-arm64-YYYYMMDD.img`。预编译固件和镜像不进 git。
+- **在哪构建**：debootstrap、U-Boot/kernel 编译、镜像打包在所有者的 DW-MiBook 上，经本机 Grok Bot 执行。不在 MBA-M1-Fedora，也不作为大型 Cursor 云端任务。云端 agent 只改仓库代码和文档。详见 [AGENTS.md](AGENTS.md)。
 
 ## 通向第一张 SD 卡
 
