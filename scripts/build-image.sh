@@ -417,6 +417,8 @@ if [[ $(uname -s) != Linux ]]; then
   die "写盘只支持 Linux（含 Docker）。当前是 $(uname -s)。裸 macOS 不能写这张镜像。"
 fi
 
+# GNU readlink -f 要求除最后一段外路径都存在。默认 OUT 在 out/ 下，这个目录经常还没有。
+mkdir -p -- "$(dirname -- "${OUT}")"
 out_real=$(readlink -f "${OUT}")
 if [[ -d ${ROOTFS} ]]; then
   root_real=$(readlink -f "${ROOTFS}")
