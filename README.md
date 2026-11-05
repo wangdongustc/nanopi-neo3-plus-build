@@ -8,6 +8,8 @@ NanoPi NEO3 Plus（RK3528A，2GB LPDDR4）的镜像构建仓库。FriendlyELEC U
 
 板卡说明：[FriendlyELEC Wiki — NanoPi NEO3 Plus](https://wiki.friendlyelec.com/wiki/index.php/NanoPi_NEO3_Plus)。步骤见 [docs/build-outline.md](docs/build-outline.md)。协作者约束见 [AGENTS.md](AGENTS.md)。
 
+SD 启动链与输入契约见 [docs/image-layout.md](docs/image-layout.md)。
+
 ## 硬约束
 
 - **引导与内核**：FriendlyELEC U-Boot v2017.09 + kernel 6.1.y。`/lib/modules/6.1.*` 与 `kernel.img` 一致，模块从现有 Noble 镜像带入。apt Pin-Priority -1 并 hold：`linux-image-generic`、`linux-generic` 及 headers。不安装 Ubuntu 官方 7.0 内核。
