@@ -282,7 +282,7 @@ dd if=idbloader.img of=/dev/sdX bs=512 seek=$((0x40)) conv=fsync
 
 `--rootfs` 给目录时，由 Build 打 ext4（`LABEL=rootfs`，块大小 4096），`/etc/fstab` 用 `LABEL=rootfs`。分区比镜像大，镜像不必撑满整张卡。
 
-若 Ubuntu 先交来一份 `.img`，且该文件来自上游 `build-rootfs-img.sh`，它是 android sparse：`mke2fs -E android_sparse -t ext4 -L rootfs -M /root -b 4096`。未传入大小时，字节数约为 `(du -s -B64M <rootfs-dir> 的数值 + 3) * 64MiB`。这条路径由 Build 在 `--rootfs` 文件上做 `simg2img`。该上游脚本还会按 `parameter.template` 重写带 userdata 的 `parameter.txt`；那份表不是产品表。
+若 Ubuntu 先交来一份 `.img`，且该文件来自上游 `build-rootfs-img.sh`，它只作为 `--rootfs` 的输入，不做整卡写盘。该文件是 android sparse：`mke2fs -E android_sparse -t ext4 -L rootfs -M /root -b 4096`。未传入大小时，字节数约为 `(du -s -B64M <rootfs-dir> 的数值 + 3) * 64MiB`。整卡仍由 `build-image.sh` 写；Build 在这份 `.img` 上先 `simg2img`。该上游脚本还会按 `parameter.template` 重写带 userdata 的 `parameter.txt`；那份表不是产品表。
 
 ### 对照 / 退路
 
@@ -306,4 +306,4 @@ SSH、千兆和厂商模块仍按 ADR-0001 验收。写完卡可以用 `dd if=/d
 - `nanopi_zero2` 的 `idbloader.img` + `uboot.img` 能否在 NEO3 Plus 2GB 上完成 DDR 初始化并进入内核。
 - 官方 `20280806` 的 `resource.img` 是否选中 `friendlyelec,nanopi-neo3-plus`（rev02）。内核树在 2026-03-04 加入该 DTS，镜像日期晚于该提交，但仍以启动日志为准。
 - 自研 `sgdisk` 的 rootfs 结尾是否与 `sd_update` 的备份 GPT 一致。
-- 冷启动后根设备名是否就是 dtbo 里的 `/dev/mmcblk0p8`。
+- 冷启动后根设备名是否就是 dtbo 里的 `/dev/mmcblk0p8`，并且 `/etc/fstab` 的 `LABEL=rootfs` 指向同一分区。两者要一起看。
