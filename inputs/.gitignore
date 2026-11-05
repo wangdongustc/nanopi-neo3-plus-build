@@ -1,0 +1,4 @@
+# Keep docs; ignore blobs and local pin files
+*
+!.gitignore
+!README.md
