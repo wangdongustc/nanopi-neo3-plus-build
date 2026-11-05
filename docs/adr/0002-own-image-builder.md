@@ -37,6 +37,6 @@ fstab 的 LABEL 对齐本布局的 `rootfs`，不再对齐 sd-fuse 目录里的�
 
 eMMC（上游 `mk-emmc-image.sh`）不在本决策里。SD 冷启动通过后再开。
 
-当前 `scripts/build-image.sh` 只校验输入并打印布局，退出码 2，不生成镜像文件。GPT 写入、parameter 是否要额外嵌入、以及 idbloader 落在 LBA 64，实现时对照官方 SD 镜像确认。
+`scripts/build-image.sh` 已按 [BSP 启动链](../bsp-boot-chain.md) 写 GPT 和分区：idbloader 在 LBA 64，不把 `parameter.txt` 写入镜像。板上冷启动，以及和官方 SD 镜像的对照，仍未做。
 
 验收清单以 [AGENTS.md](../../AGENTS.md) 为准：`uname -r` 仍为 6.1，`/etc/os-release` 为 26.04，串口 1500000，SSH 与千兆可用，SD 冷启动。

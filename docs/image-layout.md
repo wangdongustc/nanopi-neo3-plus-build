@@ -4,7 +4,7 @@
 
 ## 产品路径
 
-决策见 [ADR-0002](adr/0002-own-image-builder.md)。产品 CLI 只有 [`scripts/build-image.sh`](../scripts/build-image.sh)：按 [`scripts/partition-layout.md`](../scripts/partition-layout.md) 自建 GPT，再用 `dd` 灌装。该脚本目前只校验输入并打印布局，退出码 2，不生成 `.img`。没有第二套入口。
+决策见 [ADR-0002](adr/0002-own-image-builder.md)。写盘契约以 [BSP 启动链](bsp-boot-chain.md) 为准。产品 CLI 只有 [`scripts/build-image.sh`](../scripts/build-image.sh)：按 [`scripts/partition-layout.md`](../scripts/partition-layout.md) 自建 GPT，再用 `dd` 灌装。Linux 上成功写出 `.img` 并退出 0。没有第二套入口。板上冷启动尚未验收。
 
 - FriendlyELEC 预编译 blob 只作验证输入（本地 `inputs/`，不入库），用 `build-image.sh` 的参数传入。
 - 不调用 `sd_update`、`mk-sd-image.sh`、`fusing.sh`。可以读上游文档做对照。
@@ -64,8 +64,8 @@ Rockchip SD/eMMC 典型链（[Rockchip Boot option](http://opensource.rock-chips
 
 ## rootfs
 
-- 文件系统：**ext4**，卷标 `rootfs`（ADR-0002，`/etc/fstab` 用 `LABEL=rootfs`）。
-- FE 工具链常生成 **android sparse**（`-E android_sparse`）。灌装时若遇 sparse，需先 `simg2img`，或由 Ubuntu 交付 raw ext4。raw 还是 sparse 仍是阻塞项。
+- 文件系统：**ext4**，卷标 `rootfs`，块大小 4096（ADR-0002，`/etc/fstab` 用 `LABEL=rootfs`）。
+- `--rootfs` 优先是目录。裸 ext4 `.img` 同样接受。FE 工具链的 **android sparse**（`-E android_sparse`）只作兜底：脚本先 `simg2img` 再写入。不要求 Ubuntu 交付 sparse。
 - `root=` cmdline 字符串尚未钉死（见 Ubuntu 阻塞项）。fstab 的 LABEL 已经定为 `rootfs`。
 - 模块：`/lib/modules/6.1.*` 必须与 `kernel.img` 同版本（ADR-0001）。
 
@@ -73,11 +73,11 @@ Rockchip SD/eMMC 典型链（[Rockchip Boot option](http://opensource.rock-chips
 
 | 能力 | 在本路径中的位置 |
 |------|------------------|
-| GPT + 按名写各分区 | **产品路径**：`scripts/build-image.sh`（`sgdisk`/`parted` + `dd`；灌装仍是 TODO） |
-| `idbloader` → LBA 64 | **产品路径**：同一脚本，偏移见 `partition-layout.md`（需对照官方镜像前 8 MiB） |
-| 拼出可 `dd` 的 `.img` | **只有** `scripts/build-image.sh`。当前退出码 2，不写文件 |
+| GPT + 按名写各分区 | **产品路径**：`scripts/build-image.sh`（`sgdisk` + `dd`）。几何见 [bsp-boot-chain.md](bsp-boot-chain.md) |
+| `idbloader` → LBA 64 | **产品路径**：同一脚本，RKNS，偏移见 `partition-layout.md`（与官方镜像前 8 MiB 的对照尚未做） |
+| 拼出可 `dd` 的 `.img` | **只有** `scripts/build-image.sh`。Linux 上写出文件并退出 0。板上冷启动尚未验收 |
 | U-Boot / kernel / `kernel.img`+`resource.img` | BSP 产物。FE 预编译只作验证输入，不入库 |
-| rootfs | Ubuntu 交付目录或 ext4。sparse 与否见阻塞项 |
+| rootfs | 优先目录，其次裸 ext4。android sparse 只是写盘兜底 |
 | 下载 OS 包作对照 | 只为取验证输入。URL：`https://downloads.friendlyelec.com/os-images/rk3528/images/` |
 | `sd_update` / `mk-sd-image.sh` / `fusing.sh` | **不调用**。不是入口，也不是对照时的必经步骤 |
 
@@ -101,7 +101,7 @@ Rockchip SD/eMMC 典型链（[Rockchip Boot option](http://opensource.rock-chips
 
 ### Ubuntu
 
-1. 最小 `rootfs.img` 交付为 raw 还是 android sparse。
+1. `--rootfs` 优先交目录，其次裸 ext4（`LABEL=rootfs`，块 4096）。android sparse 只是写盘兜底，不是交付要求。冷启动后的 `root=` 仍见下一条。
 2. 第一张可启动镜像的 `root=` cmdline。fstab 的 LABEL 已定为 `rootfs`（ADR-0002），不要改回 sd-fuse 目录标签。
 3. `/lib/modules/6.1.*` 必须与 `kernel.img` 同版本（ADR-0001）。
 

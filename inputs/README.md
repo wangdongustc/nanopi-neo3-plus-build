@@ -1,6 +1,6 @@
 # inputs/ — 写盘输入约定
 
-此目录 **不提交大 blob**（gitignore）。本地或 CI cache 按下列文件名放置。产品 CLI 是 [`scripts/build-image.sh`](../scripts/build-image.sh)（[ADR-0002](../docs/adr/0002-own-image-builder.md)），用参数指向这些文件，不扫描本目录，也不读 `parameter.txt`。
+此目录 **不提交大 blob**（gitignore）。本地或 CI cache 按下列文件名放置。产品 CLI 是 [`scripts/build-image.sh`](../scripts/build-image.sh)（[ADR-0002](../docs/adr/0002-own-image-builder.md)，写盘契约见 [BSP 启动链](../docs/bsp-boot-chain.md)），用参数指向这些文件，不扫描本目录，也不读 `parameter.txt`。
 
 FriendlyELEC 预编译 blob 只作为验证输入，不入库，也不是写盘入口。不要调用 `sd_update` 出图。扇区表见 [`scripts/partition-layout.md`](../scripts/partition-layout.md)。
 
@@ -14,7 +14,8 @@ inputs/
   kernel.img            # --kernel     必选（vendor 6.1）
   resource.img          # --resource   必选
   dtbo.img              # --dtbo       必选，plain（关闭 OverlayFS）
-  rootfs.img            # --rootfs     必选；也可以是 rootfs 目录
+  rootfs/               # --rootfs     优先。目录，脚本打 ext4 LABEL=rootfs
+  rootfs.img            # --rootfs     也可以。裸 ext4；sparse 只作兜底
   misc.img              # --misc       可选（无则空分区）
   boot.img              # --boot       可选
   recovery.img          # --recovery   可选
@@ -22,7 +23,7 @@ inputs/
   *.sha256              # 强烈建议，不入库
 ```
 
-示例（当前脚本只校验并打印，退出码 2，不生成镜像）：
+示例（Linux 上写出镜像，退出码 0；`--rootfs` 也可以是目录）：
 
 ```
 scripts/build-image.sh \
@@ -31,7 +32,7 @@ scripts/build-image.sh \
   --kernel inputs/kernel.img \
   --resource inputs/resource.img \
   --dtbo inputs/dtbo.img \
-  --rootfs inputs/rootfs.img
+  --rootfs inputs/rootfs
 ```
 
 ## 从谁来
@@ -43,7 +44,7 @@ scripts/build-image.sh \
 | `MiniLoaderAll.bin` | BSP（下载模式/对照） | 同 U-Boot 构建；**不要**当作 `--idbloader` |
 | `kernel.img` / `resource.img` | BSP；FE tgz 仅作验证 | 分区包或 `build-kernel.sh`（`nanopi6-v6.1.y`） |
 | `dtbo.img` / `boot.img` / `misc.img` | BSP 或 FE 包 | plain dtbo，不是 overlay 版 |
-| `rootfs.img` 或 rootfs 目录 | Ubuntu | debootstrap Resolute（ADR-0001）；过渡验证可用官方 Noble rootfs |
+| rootfs 目录（优先）或裸 ext4 `rootfs.img` | Ubuntu | debootstrap Resolute（ADR-0001）。块 4096，卷标 `rootfs`。sparse 不是交付要求 |
 | 厂商 `/lib/modules/6.1.*` | Ubuntu+BSP | 从 Noble 镜像/板子 `carry.tgz`，版本与 `kernel.img` 一致 |
 
 ## 下载入口（FE）
@@ -74,5 +75,5 @@ rootfs.img     sha256=...  ubuntu-resolute debootstrap <date>  or noble-core ext
 - Linux x86_64 或 aarch64（Docker 内的 Linux 即可）
 - 正式重活在 **DW-MiBook**，经本地 Grok Bot，每次需人工批准。见 [AGENTS.md](../AGENTS.md)。
 - 不要使用 **MBA-M1-Fedora**。Cursor 云端虚拟机不做大型编译，也不保留镜像产物。
-- 工具：`dd`，`sgdisk` 或 `parted`+`sfdisk`，`losetup`，可选 `simg2img`
-- **不要**在裸 macOS 上对块设备写盘
+- 工具：`sgdisk`（gdisk）、`dd`、`mkfs.ext4` 与 `dumpe2fs`（e2fsprogs）。android sparse 兜底时要 `simg2img`（`android-sdk-libsparse-utils` 或 android-tools）。检查文件镜像用 `losetup`，没有分区节点时再 `partx -av`。写盘本身不挂 loop
+- 写盘只支持 Linux（含 Docker）。不要在裸 macOS 上写镜像

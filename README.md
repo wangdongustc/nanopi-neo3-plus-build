@@ -23,7 +23,7 @@ SD 启动链与输入契约见 [docs/image-layout.md](docs/image-layout.md)。
 
 1. **Ubuntu**：`build-resolute-rootfs.sh`（尚未入库）做出 Resolute rootfs，并用 `carry.tgz` 带入与 `kernel.img` 成对的 6.1 模块。
 2. **BSP**：准备 `idbloader`、`uboot.img`、`kernel.img`、`resource.img`、plain `dtbo.img`。来源是 FriendlyELEC 预编译或本仓编译，文件放在 git 外。
-3. **构建**：`scripts/build-image.sh` 按分区表写出 `out/*.img`。脚本现在会校验参数并打印布局，GPT 灌装仍是 TODO（退出码 2，不生成文件）。
+3. **构建**：`scripts/build-image.sh` 按 [BSP 启动链](docs/bsp-boot-chain.md) 和分区表写出 `out/*.img`（Linux 上退出码 0）。`--rootfs` 优先目录（ext4，`LABEL=rootfs`，块 4096），也接受裸 ext4；android sparse 只作兜底。板上冷启动尚未验收。
 4. **验收**：把镜像写入 SD，断电冷启动。`uname -r` 仍是 6.1，`/etc/os-release` 是 26.04，串口 1500000，SSH 与千兆可用。
 
 ## 分工
