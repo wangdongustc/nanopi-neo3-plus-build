@@ -260,11 +260,11 @@ scripts/build-image.sh \
 
 默认输出：`out/rk3528-sd-ubuntu-resolute-core-6.1-arm64-YYYYMMDD.img`。
 
-`--rootfs` 若是 `.img`：Build 检测 android sparse，先 `simg2img` 再写入。若是目录：Build 打 ext4，卷标 `LABEL=rootfs`。两种输入都不改第 2 节的扇区数字。
+`--rootfs` 优先是目录（`mkfs.ext4 -b 4096 -L rootfs`）。裸 ext4 `.img` 同样接受。android sparse 只作兜底：检测到则先 `simg2img` 再写入。不要求 Ubuntu 交 sparse。三种输入都不改第 2 节的扇区数字。不扫描 `sd-out/`，只认参数。
 
 产品表是 `scripts/partition-layout.md`。不读 Wiki eMMC `parted`，不以官方包内 OverlayFS `parameter.txt` 为产品表。
 
-`build-image.sh` 当前只校验输入并打印布局（退出码 2）。GPT 写入按下面的顺序实现。
+`build-image.sh` 按下面的顺序写普通文件镜像（`truncate` + `sgdisk` + `dd`，不需要真实 `/dev/sdX`）。成功退出码 0。板上冷启动尚未验收。写盘决策见 [ADR-0002](adr/0002-own-image-builder.md)。
 
 ### 写盘顺序
 
@@ -276,19 +276,23 @@ dd if=idbloader.img of=/dev/sdX bs=512 seek=$((0x40)) conv=fsync
 ```
 
 3. 各分区镜像按裸文件 `dd`，`bs=512 seek=<起点 LBA>`。没有 misc / boot / recovery 文件就留下空分区。
-4. rootfs 按上一节的 sparse 或目录规则处理后再写入。直接 `dd` android sparse 会把稀疏头写进文件系统。
+4. rootfs 按下一节的顺序处理后再写入。直接 `dd` android sparse 会把稀疏头写进文件系统。
 
 ### rootfs 从哪来
 
-`--rootfs` 给目录时，由 Build 打 ext4（`LABEL=rootfs`，块大小 4096），`/etc/fstab` 用 `LABEL=rootfs`。分区比镜像大，镜像不必撑满整张卡。
+`--rootfs` 的优先顺序：
 
-若 Ubuntu 先交来一份 `.img`，且该文件来自上游 `build-rootfs-img.sh`，它只作为 `--rootfs` 的输入，不做整卡写盘。该文件是 android sparse：`mke2fs -E android_sparse -t ext4 -L rootfs -M /root -b 4096`。未传入大小时，字节数约为 `(du -s -B64M <rootfs-dir> 的数值 + 3) * 64MiB`。整卡仍由 `build-image.sh` 写；Build 在这份 `.img` 上先 `simg2img`。该上游脚本还会按 `parameter.template` 重写带 userdata 的 `parameter.txt`；那份表不是产品表。
+1. **目录（优先）。** Build 用 `mkfs.ext4 -b 4096 -L rootfs` 打进 rootfs 分区，文件系统按该分区的容量来，剩余空间在卡上可用。`/etc/fstab` 使用 `LABEL=rootfs`（Ubuntu 写在目录里；脚本不改 fstab，只保证卷标）。
+2. **裸 ext4 `.img`。** 直接 `dd` 到 LBA `0x46000`。卷标须为 `rootfs`，块大小 4096。文件可以小于分区，脚本不做 `resize2fs`。
+3. **android sparse（兜底）。** 若 `.img` 是 sparse，先 `simg2img` 再按裸 ext4 写入。不要求 Ubuntu 交付 sparse。
+
+若 `.img` 来自上游 `build-rootfs-img.sh`，它只作为 `--rootfs` 的输入，不做整卡写盘。该上游命令是 `mke2fs -E android_sparse -t ext4 -L rootfs -M /root -b 4096`。未传入大小时，字节数约为 `(du -s -B64M <rootfs-dir> 的数值 + 3) * 64MiB`。整卡仍由 `build-image.sh` 写。该上游脚本还会按 `parameter.template` 重写带 userdata 的 `parameter.txt`；那份表不是产品表。
 
 ### 对照 / 退路
 
 上游 `fusing.sh` 定义了 `fusing_bin`（`dd ... bs=512 seek=$2`）但没有调用。真正写卡的是 `tools/sd_update`（aarch64 构建机用 `tools/aarch64/sd_update`）。它从 `-p` 所指 `parameter.txt` 的目录按分区名找 `<名字>.img`。第 2 节的 LBA `0x40` 和 plain 表是对照这个二进制核对过的。
 
-本仓库入口不调用 `fusing.sh`、`sd_update` 或 `mk-sd-image.sh`。只有 `build-image.sh` 的灌装还没落地、需要临时出一张卡时，才在 sd-fuse 工作区单步跑 `sd_update`，并且先换成 `parameter-plain.txt` 与 `dtbo-plain.img`。`build-rootfs-img.sh` 会在打完 ext4 后用 template 盖掉 plain parameter，所以这两份覆盖要放在它之后。
+本仓库入口不调用 `fusing.sh`、`sd_update` 或 `mk-sd-image.sh`。产品卡由 `build-image.sh` 写文件镜像。若要在 sd-fuse 工作区对照一张卡，才单步跑 `sd_update`，并且先换成 `parameter-plain.txt` 与 `dtbo-plain.img`。`build-rootfs-img.sh` 会在打完 ext4 后用 template 盖掉 plain parameter，所以这两份覆盖要放在它之后。
 
 ### 验收
 

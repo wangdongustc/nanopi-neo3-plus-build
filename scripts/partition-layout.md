@@ -40,7 +40,7 @@ plain 布局：一个增长的 `rootfs`，没有 `userdata`，对应关闭 Overl
 | `--kernel` | 分区 `kernel`（vendor 6.1 的 `kernel.img`） |
 | `--resource` | 分区 `resource` |
 | `--dtbo` | 分区 `dtbo`。必须是关闭 OverlayFS 的 plain dtbo，不能用默认 overlay 版 |
-| `--rootfs` | 分区 `rootfs`。目录则先打成 ext4；已经是 `.img` 则按文件写入 |
+| `--rootfs` | 分区 `rootfs`。优先是目录：打成 ext4，卷标 `rootfs`，块大小 4096。裸 ext4 `.img` 直接写入。android sparse 只作兜底（先 `simg2img`） |
 
 可选：`--misc`、`--boot`、`--recovery`。缺省时仍建空分区，不拿别的文件去填。厂商 U-Boot 的主路径使用 `kernel` + `resource` + `dtbo`；`boot` / `recovery` 是否参与启动，灌装实现时对照实机镜像，不在本表里改起始扇区。
 
@@ -52,8 +52,8 @@ plain 布局：一个增长的 `rootfs`，没有 `userdata`，对应关闭 Overl
 
 ## 实现时要做的核对
 
-- [ ] `sgdisk -p` 与本表的起止 LBA、分区名一致
-- [ ] idbloader 的落点与官方镜像前 8 MiB 一致
-- [ ] plain dtbo，rootfs 上没有 OverlayFS
-- [ ] 不调用 `mk-sd-image.sh`、`fusing.sh`、`sd_update`
-- [ ] 产物只出现在 `out/`，不进 git
+- [x] 脚本用 `sgdisk` 按本表写分区名和起止 LBA，写完用 `sgdisk -i` 自检
+- [ ] idbloader 的落点与官方镜像前 8 MiB 一致（脚本写到 LBA 64；尚未对照实卡）
+- [ ] plain dtbo，rootfs 上没有 OverlayFS（输入约束；实机未核）
+- [x] 脚本不调用 `mk-sd-image.sh`、`fusing.sh`、`sd_update`
+- [x] 产物默认在 `out/`，`.img` 不进 git
