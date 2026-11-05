@@ -1,22 +1,23 @@
 # 构建提纲
 
-对应 [ADR-0001](adr/0001-userland-resolute-debootstrap.md)。这里只列顺序，脚本以后再进仓库。不要把 sd-fuse、U-Boot、kernel 或官方镜像 blob 提交进本仓库。
+用户态见 [ADR-0001](adr/0001-userland-resolute-debootstrap.md)。镜像打包见 [ADR-0002](adr/0002-own-image-builder.md)。打包入口是本仓库 [`scripts/build-image.sh`](../scripts/build-image.sh)，分区见 [`scripts/partition-layout.md`](../scripts/partition-layout.md)。
 
-上游（构建机上另行克隆，固定分支）：
+FriendlyELEC `sd-fuse_rk3528` 只作分区和参数参考，不克隆来当构建入口，也不调用它的 `mk-sd-image.sh`、`fusing.sh` 或 `sd_update`。U-Boot、kernel、官方镜像 blob 不要提交进本仓库。
 
-- 打包：<https://github.com/friendlyarm/sd-fuse_rk3528>，分支 `kernel-6.1.y`
+固件源（构建机上另行克隆，固定分支；产物留在 git 外）：
+
 - U-Boot：<https://github.com/friendlyarm/uboot-rockchip>，分支 `nanopi5-v2017.09`
 - 内核：<https://github.com/friendlyarm/kernel-rockchip>，分支 `nanopi6-v6.1.y`
+- 分区参考：<https://github.com/friendlyarm/sd-fuse_rk3528>，分支 `kernel-6.1.y`，读 `prebuilt/parameter-plain.txt`。预编译 idbloader / uboot / kernel 可从 FriendlyELEC 分区包取出，只作 `build-image.sh` 的输入文件。
 
 ## 步骤
 
-1. **克隆 sd-fuse。** `git clone -b kernel-6.1.y --single-branch`。需要预编译分区镜像时，从 FriendlyELEC 拉取 `ubuntu-noble-core-arm64-images.tgz`（引导与 `kernel.img` 的来源），不要把压缩包提交进本仓库。
-2. **准备 OS 目录。** 优先新增 `ubuntu-resolute-core-arm64`（薄封装或 fork 说明；上游脚本把 OS 名写成目录名）。暂时复用 `ubuntu-noble-core-arm64` 时，在该目录放一份标记，写明 rootfs 内容是 Resolute。
-3. **主机构建 Resolute rootfs。** `debootstrap --arch=arm64 resolute`。主机 debootstrap 若没有 `resolute` 脚本，先升级包，或把 `/usr/share/debootstrap/scripts/resolute` 链接到已有 Ubuntu 脚本（通常是 `gutsy`）。软件源用 ubuntu-ports，例如 `ports.ubuntu.com`、阿里云或清华的 ubuntu-ports；不要用 amd64 archive。只装 Server/core，不装 Desktop、snapd、NetworkManager、cloud-init。
-4. **带入厂商模块。** 从 Noble 板卡或官方镜像取出 `/lib/modules/6.1.*`，打成 `carry.tgz` 再放进新 rootfs，版本与 `kernel.img` 一致。对 `linux-image-generic`、`linux-generic` 及 headers 设置 Pin-Priority -1 并 hold。
-5. **网络与 fstab。** netplan 只渲染 systemd-networkd。网卡名等板子上 `ip link` 确认后再写（`eth0` 或 `end0`）。`/etc/fstab` 的 UUID/LABEL 对齐 sd-fuse 的分区标签。保持厂商 initramfs 路径，不改成 Dracut。
-6. **关闭 OverlayFS。** 在 OS 目录执行上游的 plain 参数复制：`parameter-plain.txt` → `parameter.txt`，`dtbo-plain.img` → `dtbo.img`。
-7. **打包。** `build-rootfs-img.sh` 把 rootfs 目录做成 `rootfs.img`，再 `mk-sd-image.sh` 生成 SD 镜像。eMMC 烧录镜像用 `mk-emmc-image.sh`，本提纲不展开。
-8. **板上验收。** `uname -r` 为 6.1；`/etc/os-release` 为 26.04；SSH 与千兆可用；厂商模块在；没有官方 7.0 内核。
+1. **准备引导与内核输入。** BSP 给出 `idbloader`、`uboot.img`、`kernel.img`、`resource.img`，以及关闭 OverlayFS 的 plain `dtbo.img`。可以是 FE 预编译，或上列分支的本仓编译结果。文件放在仓库外。
+2. **主机构建 Resolute rootfs。** `debootstrap --arch=arm64 resolute`。主机 debootstrap 若没有 `resolute` 脚本，先升级包，或把 `/usr/share/debootstrap/scripts/resolute` 链接到已有 Ubuntu 脚本（通常是 `gutsy`）。软件源用 ubuntu-ports，例如 `ports.ubuntu.com`、阿里云或清华的 ubuntu-ports；不要用 amd64 archive。只装 Server/core，不装 Desktop、snapd、NetworkManager、cloud-init。
+3. **带入厂商模块。** 从 Noble 板卡或官方镜像取出 `/lib/modules/6.1.*`，打成 `carry.tgz` 再放进新 rootfs，版本与 `kernel.img` 一致。对 `linux-image-generic`、`linux-generic` 及 headers 设置 Pin-Priority -1 并 hold。
+4. **网络与 fstab。** netplan 只渲染 systemd-networkd。网卡名等板子上 `ip link` 确认后再写（`eth0` 或 `end0`）。`/etc/fstab` 使用 `LABEL=rootfs`，与 `scripts/partition-layout.md` 里的 ext4 卷标一致。保持厂商 initramfs 路径，不改成 Dracut。
+5. **打包。** 在仓库根目录执行 `scripts/build-image.sh`，传入上列文件和 rootfs 目录（或已打好的 rootfs 镜像）。目标产物是 `out/rk3528-sd-ubuntu-resolute-core-6.1-arm64-YYYYMMDD.img`。脚本当前只校验输入并打印布局（退出码 2），GPT 灌装仍是 TODO，不会生成 `.img`。
+6. **写入 SD 并冷启动。** 镜像生成后，`dd` 到整张 SD（不是某个分区），断电再上电。eMMC 不在本提纲。
+7. **板上验收。** `uname -r` 为 6.1；`/etc/os-release` 为 26.04；串口波特率 1500000；SSH 与千兆可用；厂商模块在；没有官方 7.0 内核；断电后能从这张 SD 冷启动。
 
-`build-resolute-rootfs.sh` 与 `carry.tgz` 清单由 Ubuntu 角色补；U-Boot / kernel / DTS 由 BSP 补；打包与烧录由 Build 补。
+`build-resolute-rootfs.sh` 与 `carry.tgz` 清单由 Ubuntu 角色补；U-Boot / kernel / DTS 由 BSP 补；`scripts/build-image.sh` 的灌装由构建角色补。
