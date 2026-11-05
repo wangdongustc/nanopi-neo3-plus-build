@@ -6,7 +6,7 @@ NanoPi NEO3 Plus（RK3528A，2GB LPDDR4）的镜像构建仓库。FriendlyELEC U
 
 打包以本仓库为准，见 [ADR-0002](docs/adr/0002-own-image-builder.md)。入口是 [`scripts/build-image.sh`](scripts/build-image.sh)，分区见 [`scripts/partition-layout.md`](scripts/partition-layout.md)。FriendlyELEC [`sd-fuse_rk3528`](https://github.com/friendlyarm/sd-fuse_rk3528) 只提供分区和参数参考，不作为构建入口，也不调用它的 `mk-sd-image.sh`。
 
-板卡说明：[FriendlyELEC Wiki — NanoPi NEO3 Plus](https://wiki.friendlyelec.com/wiki/index.php/NanoPi_NEO3_Plus)。步骤见 [docs/build-outline.md](docs/build-outline.md)。协作者约束见 [AGENTS.md](AGENTS.md)。
+板卡说明：[FriendlyELEC Wiki — NanoPi NEO3 Plus](https://wiki.friendlyelec.com/wiki/index.php/NanoPi_NEO3_Plus)。步骤见 [docs/build-outline.md](docs/build-outline.md)。启动链、idbloader 和 Build 的参数契约见 [docs/bsp-boot-chain.md](docs/bsp-boot-chain.md)。协作者约束见 [AGENTS.md](AGENTS.md)。
 
 SD 启动链与输入契约见 [docs/image-layout.md](docs/image-layout.md)。
 
