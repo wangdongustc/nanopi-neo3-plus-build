@@ -400,12 +400,38 @@ reject_forbidden_packages() {
   fi
 }
 
+# apt-mark hold 只接受已安装版本或候选版本。未安装且 Candidate 为 (none)
+# （包不在源里，或已被 Pin-Priority -1 钉住）时调用会退出 100。
+package_installed_or_candidate() {
+  local rootfs=$1
+  local pkg=$2
+  local policy installed candidate
+  policy=$(chroot "${rootfs}" env LC_ALL=C apt-cache policy -- "${pkg}" 2>/dev/null || true)
+  installed=$(printf '%s\n' "${policy}" | awk '/^[[:space:]]*Installed: / { print $2; exit }')
+  candidate=$(printf '%s\n' "${policy}" | awk '/^[[:space:]]*Candidate: / { print $2; exit }')
+  if [[ -n ${installed} && ${installed} != "(none)" ]]; then
+    return 0
+  fi
+  if [[ -n ${candidate} && ${candidate} != "(none)" ]]; then
+    return 0
+  fi
+  return 1
+}
+
 hold_kernel_packages() {
   local rootfs=$1
   local holds pkg
-  chroot "${rootfs}" apt-mark hold "${HOLD_PACKAGES[@]}"
-  holds=$(chroot "${rootfs}" apt-mark showhold)
+  local -a held=()
   for pkg in "${HOLD_PACKAGES[@]}"; do
+    if package_installed_or_candidate "${rootfs}" "${pkg}"; then
+      chroot "${rootfs}" apt-mark hold "${pkg}"
+      held+=("${pkg}")
+    else
+      printf 'warning: 跳过 apt-mark hold %s：未安装，也没有候选版本。pin 仍然生效。\n' "${pkg}" >&2
+    fi
+  done
+  holds=$(chroot "${rootfs}" apt-mark showhold)
+  for pkg in "${held[@]}"; do
     grep -qx "${pkg}" <<<"${holds}" || die "未 apt-mark hold: ${pkg}"
   done
 }
