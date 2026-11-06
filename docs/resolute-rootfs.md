@@ -16,7 +16,7 @@ LABEL=rootfs  /  ext4 defaults,noatime,errors=remount-ro 0 1
 
 本脚本不 `dd` 磁盘，不调用 `mk-emmc-image`。sd-fuse 不是出口。可启动 SD 仍由 `scripts/build-image.sh` 按 plain GPT 写出。
 
-默认 `SUITE=resolute`。`SUITE=noble` 只在 Resolute 镜像源故障时作过渡，这时 `/etc/os-release` 必须是 24.04/noble。默认发布仍是 26.04/resolute。不要装 Desktop、snapd、NetworkManager（`network-manager`）、cloud-init，也不装 `linux-image-generic`、`linux-generic`、`linux-headers-generic`。脚本在 debootstrap 支持时传入 `--exclude`，并写入 Pin-Priority -1，再 `apt-mark hold`。
+默认 `SUITE=resolute`。`SUITE=noble` 只在 Resolute 镜像源故障时作过渡，这时 `/etc/os-release` 必须是 24.04/noble。默认发布仍是 26.04/resolute。不要装 Desktop、snapd、NetworkManager（`network-manager`）、cloud-init，也不装 `linux-image-generic`、`linux-generic`、`linux-headers-generic`。脚本在 debootstrap 支持时传入 `--exclude`，并写入 Pin-Priority -1，再 `apt-mark hold`。Resolute 早期软件源若还没有这些 generic 内核元包，hold 可以跳过；pin 仍然生效。
 
 debootstrap 使用 `--arch=arm64 --variant=minbase`。装上 systemd、systemd-sysv、udev、dbus、apt-utils、sudo、openssh-server、netplan.io、systemd-resolved、ca-certificates、locales、tzdata、kmod、initramfs-tools、iproute2、iputils-ping，以及 ubuntu-keyring、adduser、procps、ethtool、e2fsprogs。不装 `linux-image-*`。
 
